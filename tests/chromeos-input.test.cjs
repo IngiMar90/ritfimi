@@ -4,6 +4,9 @@ const vm = require("node:vm");
 
 const input = {
   value: "",
+  style: {},
+  scrollHeight: 80,
+  scrollTop: 0,
   classList: { add() {}, remove() {} },
   setSelectionRange() {},
   addEventListener() {},
@@ -42,6 +45,7 @@ const sandbox = {
     querySelectorAll() { return []; },
   },
   window: {
+    innerHeight: 900,
     RITFIMI_LEVELS: [{ title: "Próf", description: "", color: "#000", items: ["á"] }],
     addEventListener() {},
   },
@@ -89,6 +93,17 @@ assert.equal(state.typed, "ú", "beinn samsettur stafur á að virka áfram");
 resetFor("„");
 handleKeyDown({key:'"', isComposing:false, preventDefault(){}});
 assert.equal(state.typed, "„", "Shift+2 gæsalappalausnin má ekki bila");
+
+input.scrollHeight = 170;
+resizeTypingArea(input);
+assert.equal(input.style.height, "170px", "ritunarreitur á að stækka með textanum");
+assert.equal(input.style.overflowY, "hidden");
+
+input.scrollHeight = 400;
+resizeTypingArea(input);
+assert.equal(input.style.height, "240px", "ritunarreitur má ekki ýta lyklaborðinu endalaust niður");
+assert.equal(input.style.overflowY, "auto", "langur texti á að fá innri skrunun");
+assert.equal(input.scrollTop, 400, "ritunarreitur á að fylgja bendlinum neðst");
 `;
 
 sandbox.assert = assert;
