@@ -1,4 +1,4 @@
-const CACHE = "ritfimi-v2";
+const CACHE = "ritfimi-v3";
 const ASSETS = ["./", "index.html", "styles.css", "data.js", "app.js", "manifest.webmanifest", "icons/icon.svg"];
 
 self.addEventListener("install", (event) => {
