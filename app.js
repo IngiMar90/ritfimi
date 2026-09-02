@@ -124,7 +124,7 @@ function renderPractice() {
     <section class="practice-card">
       <p class="eyebrow">SKRIFAÐU</p>
       <h1 class="target">${escapeHtml(targetText())}</h1>
-      <input class="typing-input" id="typing-input" type="text" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Skrifaðu textann hér">
+      <textarea class="typing-input" id="typing-input" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Skrifaðu textann hér"></textarea>
       <p class="feedback" id="feedback">Byrjaðu að skrifa</p>
     </section>
     <section class="keyboard-card">${keyboardHtml()}</section>`;
@@ -139,7 +139,19 @@ function renderPractice() {
   input.addEventListener("paste", (event) => event.preventDefault());
   input.addEventListener("drop", (event) => event.preventDefault());
   input.focus();
+  resizeTypingArea(input);
   updateExpectedKeys();
+}
+
+function resizeTypingArea(input) {
+  if (!input) return;
+  const maxHeight = Math.min(240, Math.max(120, window.innerHeight * 0.3));
+  input.style.height = "auto";
+  const wantedHeight = Math.max(66, input.scrollHeight);
+  input.style.height = `${Math.min(wantedHeight, maxHeight)}px`;
+  input.style.overflowY = wantedHeight > maxHeight ? "auto" : "hidden";
+  // Bendillinn er alltaf aftast þar sem aðeins réttur næsti stafur er leyfður.
+  input.scrollTop = input.scrollHeight;
 }
 
 function handleKeyDown(event) {
@@ -216,6 +228,7 @@ function handleNativeInput(event) {
   // Fjarlægir tímabundinn texta sem vafrinn setur sjálfur inn án þess að
   // leyfa röngum staf að sitja eftir í svarreitnum.
   if (!state.composing && !event.isComposing) event.target.value = state.typed;
+  resizeTypingArea(event.target);
 }
 
 function processCharacter(char) {
@@ -253,6 +266,7 @@ function acceptCharacter(char) {
   if (!input) return;
   input.value = state.typed;
   input.setSelectionRange(input.value.length, input.value.length);
+  resizeTypingArea(input);
   setFeedback("Flott! Haltu áfram.", "good");
   beep(560, .035);
 
