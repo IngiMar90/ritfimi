@@ -21,6 +21,7 @@ næsti stafur er samþykktur. Ef nemandi ýtir á rangan takka blikkar rétti ta
 - Orð, orðasambönd, setningar, greinarmerki, samtöl og stuttir textar.
 - Shift+2 setur sjálfkrafa inn réttar íslenskar gæsalappir: „ og “.
 - Broddstafir virka með ChromeOS/Chromebook composition-atburðum.
+- Ritunarreiturinn stækkar með löngum texta, brýtur hann niður á línur og fylgir bendlinum.
 - Framvinda vistast á tækinu.
 - Hljóð má kveikja og slökkva.
 
