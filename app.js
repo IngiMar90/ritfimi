@@ -15,6 +15,7 @@ const state = {
   index: 0,
   typed: "",
   accentStarted: false,
+  composing: false,
   locked: false,
   sound: localStorage.getItem("ritfimi-sound") !== "off",
 };
@@ -83,6 +84,7 @@ function startLevel(levelIndex) {
   state.index = 0;
   state.typed = "";
   state.accentStarted = false;
+  state.composing = false;
   state.locked = false;
   renderPractice();
 }
@@ -131,6 +133,9 @@ function renderPractice() {
   const input = app.querySelector("#typing-input");
   input.addEventListener("keydown", handleKeyDown);
   input.addEventListener("beforeinput", handleBeforeInput);
+  input.addEventListener("compositionstart", handleCompositionStart);
+  input.addEventListener("compositionend", handleCompositionEnd);
+  input.addEventListener("input", handleNativeInput);
   input.addEventListener("paste", (event) => event.preventDefault());
   input.addEventListener("drop", (event) => event.preventDefault());
   input.focus();
@@ -140,11 +145,18 @@ function renderPractice() {
 function handleKeyDown(event) {
   if (event.key === "Escape") { event.preventDefault(); renderMenu(); return; }
   if (["Shift","Control","Alt","Meta","CapsLock","Tab"].includes(event.key)) return;
-  if (event.key === "Dead" && accented[expectedChar()] && !state.accentStarted) {
-    event.preventDefault();
-    state.accentStarted = true;
-    setFeedback("Núna kemur stafurinn", "good");
-    updateExpectedKeys();
+  if (event.isComposing || state.composing || event.key === "Process") return;
+  if (event.key === "Dead") {
+    if (accented[expectedChar()] && !state.accentStarted) {
+      // Ekki stöðva sjálfgefna hegðun. ChromeOS þarf hana til að hefja
+      // composition og sameina broddinn við næsta sérhljóða.
+      state.accentStarted = true;
+      setFeedback("Núna kemur stafurinn", "good");
+      updateExpectedKeys();
+    } else {
+      event.preventDefault();
+      wrongKey();
+    }
     return;
   }
   if (event.key.length === 1) {
@@ -157,11 +169,53 @@ function handleKeyDown(event) {
 }
 
 function handleBeforeInput(event) {
-  // beforeinput sér um sýndarlyklaborð í símum. keydown sér um tölvur.
+  // ChromeOS þarf að fá að ljúka composition-atburðum fyrir broddstafi.
+  if (event.isComposing || event.inputType.includes("Composition")) return;
+
+  // beforeinput sér annars um sýndarlyklaborð í símum. keydown sér um tölvur.
   event.preventDefault();
   if (event.inputType === "insertText" && event.data) {
     for (const char of event.data) processCharacter(char);
   }
+}
+
+function handleCompositionStart() {
+  state.composing = true;
+  if (accented[expectedChar()] && !state.accentStarted) {
+    state.accentStarted = true;
+    setFeedback("Núna kemur stafurinn", "good");
+    updateExpectedKeys();
+  }
+}
+
+function handleCompositionEnd(event) {
+  const input = app.querySelector("#typing-input");
+  const composed = (event.data || "").normalize("NFC");
+  state.composing = false;
+  if (input) input.value = state.typed;
+  if (!composed) return;
+
+  const expected = expectedChar();
+  const base = accented[expected];
+  if (base && state.accentStarted) {
+    const reportedBase = composed.replace(/[´'\u0301]/g, "");
+    if (composed === expected || reportedBase === (expected === expected.toUpperCase() ? base.toUpperCase() : base)) {
+      acceptCharacter(expected);
+      return;
+    }
+    state.accentStarted = false;
+    updateExpectedKeys();
+    wrongKey();
+    return;
+  }
+
+  for (const char of composed) processCharacter(char);
+}
+
+function handleNativeInput(event) {
+  // Fjarlægir tímabundinn texta sem vafrinn setur sjálfur inn án þess að
+  // leyfa röngum staf að sitja eftir í svarreitnum.
+  if (!state.composing && !event.isComposing) event.target.value = state.typed;
 }
 
 function processCharacter(char) {
@@ -171,6 +225,17 @@ function processCharacter(char) {
 
   if (char === '"' && (expected === "„" || expected === "“")) char = expected;
   if (char === expected) { acceptCharacter(expected); return; }
+
+  // Varaleið fyrir ChromeOS-uppsetningar sem senda fyrst Dead og síðan
+  // grunnstafinn í stað þess að skila samsetta stafnum í compositionend.
+  if (state.accentStarted && accented[expected]) {
+    const base = expected === expected.toUpperCase() ? accented[expected].toUpperCase() : accented[expected];
+    if (char === base) { acceptCharacter(expected); return; }
+    state.accentStarted = false;
+    updateExpectedKeys();
+    wrongKey();
+    return;
+  }
 
   if (accented[expected] && !state.accentStarted && (char === "´" || char === "'")) {
     state.accentStarted = true;
@@ -205,6 +270,7 @@ function nextItem() {
   if (state.index >= state.round.length) { renderFinish(); return; }
   state.typed = "";
   state.accentStarted = false;
+  state.composing = false;
   state.locked = false;
   renderPractice();
 }
